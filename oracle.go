@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	_ "github.com/godror/godror"
+	_ "github.com/mattn/go-oci8"
 	"gorm.io/gorm"
 	"gorm.io/gorm/callbacks"
 	"gorm.io/gorm/clause"
@@ -43,7 +43,7 @@ func (d Dialector) Initialize(db *gorm.DB) (err error) {
 	// register callbacks
 	callbacks.RegisterDefaultCallbacks(db, &callbacks.Config{})
 
-	d.DriverName = "godror"
+	d.DriverName = "oci8"
 
 	if d.Conn != nil {
 		db.ConnPool = d.Conn
@@ -143,14 +143,11 @@ func (d Dialector) DataTypeOf(field *schema.Field) string {
 	}
 
 	switch field.DataType {
-	case schema.Bool:
-		return "INTEGER"
-	case schema.Int, schema.Uint, schema.Float:
-		sqlType := "NUMBER"
+
+	case schema.Bool, schema.Int, schema.Uint, schema.Float:
+		sqlType := "INTEGER"
 
 		switch field.DataType {
-		case schema.Int, schema.Uint:
-			sqlType = "INTEGER"
 		case schema.Float:
 			sqlType = "FLOAT"
 		}
