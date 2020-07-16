@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	_ "github.com/mattn/go-oci8"
+	_ "github.com/godror/godror"
 	"gorm.io/gorm"
 	"gorm.io/gorm/callbacks"
 	"gorm.io/gorm/clause"
@@ -43,9 +43,7 @@ func (dialector Dialector) Initialize(db *gorm.DB) (err error) {
 	// register callbacks
 	callbacks.RegisterDefaultCallbacks(db, &callbacks.Config{})
 
-	if dialector.DriverName == "" {
-		dialector.DriverName = "oci8"
-	}
+	dialector.DriverName = "godror"
 
 	if dialector.Conn != nil {
 		db.ConnPool = dialector.Conn
