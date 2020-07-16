@@ -41,7 +41,7 @@ func (d Dialector) Name() string {
 
 func (d Dialector) Initialize(db *gorm.DB) (err error) {
 	// register callbacks
-	callbacks.RegisterDefaultCallbacks(db, &callbacks.Config{})
+	callbacks.RegisterDefaultCallbacks(db, &callbacks.Config{WithReturning: true})
 
 	d.DriverName = "godror"
 
