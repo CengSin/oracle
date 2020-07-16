@@ -151,7 +151,7 @@ func (dialector Dialector) DataTypeOf(field *schema.Field) string {
 		case schema.Int, schema.Uint:
 			switch {
 			case field.Size <= 8:
-				sqlType = "SHORTINTEGER"
+				sqlType = "SMALLINT"
 			// although overlaps, this should show the distinction between short and int
 			case field.Size <= 16, field.Size <= 32:
 				sqlType = "INTEGER"
