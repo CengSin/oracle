@@ -133,7 +133,7 @@ func (dialector Dialector) Explain(sql string, vars ...interface{}) string {
 		}
 	}
 
-	return logger.ExplainSQL(sql, numericPlaceholder, `"`, vars...)
+	return logger.ExplainSQL(sql, numericPlaceholder, `'`, vars...)
 }
 
 func (dialector Dialector) DataTypeOf(field *schema.Field) string {
