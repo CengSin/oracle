@@ -4,6 +4,6 @@ go 1.14
 
 require (
 	github.com/emirpasic/gods v1.12.0
-	github.com/mattn/go-oci8 v0.0.8
+	github.com/godror/godror v0.17.0
 	gorm.io/gorm v0.2.19
 )
