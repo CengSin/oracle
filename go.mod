@@ -9,3 +9,5 @@ require (
 	golang.org/x/sys v0.0.0-20200625212154-ddb9806d33ae // indirect
 	gorm.io/gorm v0.2.22
 )
+
+replace github.com/godror/godror => github.com/stevefan1999-personal/godror v0.17.1-0.20200717180745-d483f0dacc92
