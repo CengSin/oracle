@@ -51,6 +51,10 @@ func (d Dialector) Initialize(db *gorm.DB) (err error) {
 		db.ConnPool, err = sql.Open(d.DriverName, d.DSN)
 	}
 
+	if err = db.Callback().Create().Replace("gorm:create", Create); err != nil {
+		return
+	}
+
 	for k, v := range d.ClauseBuilders() {
 		db.ClauseBuilders[k] = v
 	}
