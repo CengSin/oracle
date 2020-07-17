@@ -184,7 +184,6 @@ func MergeCreate(db *gorm.DB, onConflict clause.OnConflict, values clause.Values
 
 	db.Statement.WriteString(")")
 	outputInserted(db)
-	db.Statement.WriteString(";")
 }
 
 func outputInserted(db *gorm.DB) {
