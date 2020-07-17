@@ -1,11 +1,14 @@
 package oracle
 
 import (
+	"database/sql"
 	"reflect"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/callbacks"
 	"gorm.io/gorm/clause"
+
+	"github.com/sirupsen/logrus"
 )
 
 func Create(db *gorm.DB) {
@@ -14,6 +17,10 @@ func Create(db *gorm.DB) {
 			db.Statement.AddClause(c)
 		}
 	}
+
+	var (
+		boundVars map[string]interface{}
+	)
 
 	if db.Statement.SQL.String() == "" {
 		var (
@@ -40,7 +47,7 @@ func Create(db *gorm.DB) {
 		}
 
 		if hasConflict {
-			MergeCreate(db, onConflict, values)
+			boundVars = MergeCreate(db, onConflict, values)
 		} else {
 			db.Statement.AddClauseIfNotExists(clause.Insert{Table: clause.Table{Name: db.Statement.Table}})
 			db.Statement.Build("INSERT")
@@ -70,7 +77,7 @@ func Create(db *gorm.DB) {
 						db.Statement.WriteByte(')')
 					}
 				}
-				outputInserted(db)
+				boundVars = outputInserted(db)
 			}
 		}
 	}
@@ -80,7 +87,7 @@ func Create(db *gorm.DB) {
 
 		if err == nil {
 			defer rows.Close()
-
+			logrus.WithField("boundVars", boundVars).Debug("Print boundVars")
 			if len(db.Statement.Schema.FieldsWithDefaultDBValue) > 0 {
 				values := make([]interface{}, len(db.Statement.Schema.FieldsWithDefaultDBValue))
 
@@ -122,7 +129,7 @@ func Create(db *gorm.DB) {
 	}
 }
 
-func MergeCreate(db *gorm.DB, onConflict clause.OnConflict, values clause.Values) {
+func MergeCreate(db *gorm.DB, onConflict clause.OnConflict, values clause.Values) (boundVars map[string]interface{}) {
 	db.Statement.WriteString("MERGE INTO ")
 	db.Statement.WriteQuoted(db.Statement.Table)
 	db.Statement.WriteString(" USING (")
@@ -182,12 +189,14 @@ func MergeCreate(db *gorm.DB, onConflict clause.OnConflict, values clause.Values
 	}
 
 	db.Statement.WriteString(")")
-	outputInserted(db)
+	return outputInserted(db)
 }
 
-func outputInserted(db *gorm.DB) {
+func outputInserted(db *gorm.DB) (boundVars map[string]interface{}) {
 	if len(db.Statement.Schema.FieldsWithDefaultDBValue) > 0 {
 		db.Statement.WriteString(" RETURNING ")
+
+		boundVars = make(map[string]interface{})
 		for idx, field := range db.Statement.Schema.FieldsWithDefaultDBValue {
 			if idx > 0 {
 				db.Statement.WriteString(",")
@@ -200,7 +209,12 @@ func outputInserted(db *gorm.DB) {
 			if idx > 0 {
 				db.Statement.WriteString(",")
 			}
-			db.Statement.AddVar(db.Statement, clause.Column{Name: field.DBName})
+
+			out := sql.NamedArg{Name: field.DBName}
+			boundVars[field.DBName] = &out
+			db.Statement.AddVar(db.Statement, &out)
+			// db.Dialector.BindVarTo(db.Statement, db.Statement, out)
 		}
 	}
+	return
 }
