@@ -70,7 +70,7 @@ func Create(db *gorm.DB) {
 						db.Statement.WriteByte(')')
 					}
 				}
-
+				outputInserted(db)
 			}
 		}
 	}
