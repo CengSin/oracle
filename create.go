@@ -2,41 +2,45 @@ package oracle
 
 import (
 	"database/sql"
-	"reflect"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/callbacks"
 	"gorm.io/gorm/clause"
-
-	"github.com/sirupsen/logrus"
 )
 
 func Create(db *gorm.DB) {
-	if db.Statement.Schema != nil && !db.Statement.Unscoped {
-		for _, c := range db.Statement.Schema.CreateClauses {
-			db.Statement.AddClause(c)
+	stmt := db.Statement
+	schema := stmt.Schema
+
+	if schema == nil {
+		return
+	}
+
+	if !stmt.Unscoped {
+		for _, c := range schema.CreateClauses {
+			stmt.AddClause(c)
 		}
 	}
 
 	var (
-		boundVars map[string]interface{}
+		boundVars map[string]int
 	)
 
-	if db.Statement.SQL.String() == "" {
+	if stmt.SQL.String() == "" {
 		var (
-			values                  = callbacks.ConvertToCreateValues(db.Statement)
-			c                       = db.Statement.Clauses["ON CONFLICT"]
+			values                  = callbacks.ConvertToCreateValues(stmt)
+			c                       = stmt.Clauses["ON CONFLICT"]
 			onConflict, hasConflict = c.Expression.(clause.OnConflict)
 		)
 
 		if hasConflict {
-			if len(db.Statement.Schema.PrimaryFields) > 0 {
+			if len(schema.PrimaryFields) > 0 {
 				columnsMap := map[string]bool{}
 				for _, column := range values.Columns {
 					columnsMap[column.Name] = true
 				}
 
-				for _, field := range db.Statement.Schema.PrimaryFields {
+				for _, field := range schema.PrimaryFields {
 					if _, ok := columnsMap[field.DBName]; !ok {
 						hasConflict = false
 					}
@@ -49,32 +53,32 @@ func Create(db *gorm.DB) {
 		if hasConflict {
 			boundVars = MergeCreate(db, onConflict, values)
 		} else {
-			db.Statement.AddClauseIfNotExists(clause.Insert{Table: clause.Table{Name: db.Statement.Table}})
-			db.Statement.Build("INSERT")
-			db.Statement.WriteByte(' ')
+			stmt.AddClauseIfNotExists(clause.Insert{Table: clause.Table{Name: stmt.Table}})
+			stmt.Build("INSERT")
+			stmt.WriteByte(' ')
 
-			db.Statement.AddClause(values)
-			if values, ok := db.Statement.Clauses["VALUES"].Expression.(clause.Values); ok {
+			stmt.AddClause(values)
+			if values, ok := stmt.Clauses["VALUES"].Expression.(clause.Values); ok {
 				if len(values.Columns) > 0 {
-					db.Statement.WriteByte('(')
+					stmt.WriteByte('(')
 					for idx, column := range values.Columns {
 						if idx > 0 {
-							db.Statement.WriteByte(',')
+							stmt.WriteByte(',')
 						}
-						db.Statement.WriteQuoted(column)
+						stmt.WriteQuoted(column)
 					}
-					db.Statement.WriteByte(')')
+					stmt.WriteByte(')')
 
-					db.Statement.WriteString(" VALUES ")
+					stmt.WriteString(" VALUES ")
 
 					for idx, value := range values.Values {
 						if idx > 0 {
-							db.Statement.WriteByte(',')
+							stmt.WriteByte(',')
 						}
 
-						db.Statement.WriteByte('(')
-						db.Statement.AddVar(db.Statement, value...)
-						db.Statement.WriteByte(')')
+						stmt.WriteByte('(')
+						stmt.AddVar(stmt, value...)
+						stmt.WriteByte(')')
 					}
 				}
 				boundVars = outputInserted(db)
@@ -83,44 +87,12 @@ func Create(db *gorm.DB) {
 	}
 
 	if !db.DryRun {
-		rows, err := db.Statement.ConnPool.QueryContext(db.Statement.Context, db.Statement.SQL.String(), db.Statement.Vars...)
+		if result, err := stmt.ConnPool.ExecContext(stmt.Context, stmt.SQL.String(), stmt.Vars...); err == nil {
+			db.RowsAffected, _ = result.RowsAffected()
 
-		if err == nil {
-			defer rows.Close()
-			logrus.WithField("boundVars", boundVars).Debug("Print boundVars")
-			if len(db.Statement.Schema.FieldsWithDefaultDBValue) > 0 {
-				values := make([]interface{}, len(db.Statement.Schema.FieldsWithDefaultDBValue))
-
-				switch db.Statement.ReflectValue.Kind() {
-				case reflect.Slice, reflect.Array:
-					var hasPrimaryValues, nonePrimaryValues []int
-					for i := 0; i < db.Statement.ReflectValue.Len(); i++ {
-						if _, isZero := db.Statement.Schema.PrioritizedPrimaryField.ValueOf(db.Statement.ReflectValue.Index(i)); isZero {
-							nonePrimaryValues = append(nonePrimaryValues, i)
-						} else {
-							hasPrimaryValues = append([]int{i}, hasPrimaryValues...)
-						}
-					}
-					nonePrimaryValues = append(nonePrimaryValues, hasPrimaryValues...)
-
-					for rows.Next() {
-						for idx, field := range db.Statement.Schema.FieldsWithDefaultDBValue {
-							fieldValue := field.ReflectValueOf(db.Statement.ReflectValue.Index(nonePrimaryValues[db.RowsAffected]))
-							values[idx] = fieldValue.Addr().Interface()
-						}
-
-						db.RowsAffected++
-						db.AddError(rows.Scan(values...))
-					}
-				case reflect.Struct:
-					for idx, field := range db.Statement.Schema.FieldsWithDefaultDBValue {
-						values[idx] = field.ReflectValueOf(db.Statement.ReflectValue).Addr().Interface()
-					}
-
-					if rows.Next() {
-						db.RowsAffected++
-						db.AddError(rows.Scan(values...))
-					}
+			if len(schema.FieldsWithDefaultDBValue) > 0 {
+				for _, field := range schema.FieldsWithDefaultDBValue {
+					field.Set(stmt.ReflectValue, stmt.Vars[boundVars[field.Name]].(sql.Out).Dest)
 				}
 			}
 		} else {
@@ -129,91 +101,93 @@ func Create(db *gorm.DB) {
 	}
 }
 
-func MergeCreate(db *gorm.DB, onConflict clause.OnConflict, values clause.Values) (boundVars map[string]interface{}) {
-	db.Statement.WriteString("MERGE INTO ")
-	db.Statement.WriteQuoted(db.Statement.Table)
-	db.Statement.WriteString(" USING (")
+func MergeCreate(db *gorm.DB, onConflict clause.OnConflict, values clause.Values) (boundVars map[string]int) {
+	stmt := db.Statement
+	stmt.WriteString("MERGE INTO ")
+	stmt.WriteQuoted(stmt.Table)
+	stmt.WriteString(" USING (")
 
 	for idx, column := range values.Columns {
-		db.Statement.WriteString(" SELECT")
-		db.Statement.AddVar(db.Statement, values.Values[idx]...)
-		db.Statement.WriteString(" AS ")
-		db.Statement.WriteQuoted(column.Name)
-		db.Statement.WriteString(" FROM DUAL")
-		db.Statement.WriteString(" UNION ALL")
+		stmt.WriteString(" SELECT")
+		stmt.AddVar(stmt, values.Values[idx]...)
+		stmt.WriteString(" AS ")
+		stmt.WriteQuoted(column.Name)
+		stmt.WriteString(" FROM DUAL")
+		stmt.WriteString(" UNION ALL")
 	}
 
-	db.Statement.WriteString(") excluded ON ")
+	stmt.WriteString(") excluded ON ")
 
 	var where clause.Where
-	for _, field := range db.Statement.Schema.PrimaryFields {
+	schema := stmt.Schema
+	for _, field := range schema.PrimaryFields {
 		where.Exprs = append(where.Exprs, clause.Eq{
-			Column: clause.Column{Table: db.Statement.Table, Name: field.DBName},
+			Column: clause.Column{Table: stmt.Table, Name: field.DBName},
 			Value:  clause.Column{Table: "excluded", Name: field.DBName},
 		})
 	}
-	where.Build(db.Statement)
+	where.Build(stmt)
 
 	if len(onConflict.DoUpdates) > 0 {
-		db.Statement.WriteString(" WHEN MATCHED THEN UPDATE SET ")
-		onConflict.DoUpdates.Build(db.Statement)
+		stmt.WriteString(" WHEN MATCHED THEN UPDATE SET ")
+		onConflict.DoUpdates.Build(stmt)
 	}
 
-	db.Statement.WriteString(" WHEN NOT MATCHED THEN INSERT (")
+	stmt.WriteString(" WHEN NOT MATCHED THEN INSERT (")
 
 	written := false
 	for _, column := range values.Columns {
-		if db.Statement.Schema.PrioritizedPrimaryField == nil || !db.Statement.Schema.PrioritizedPrimaryField.AutoIncrement || db.Statement.Schema.PrioritizedPrimaryField.DBName != column.Name {
+		if schema.PrioritizedPrimaryField == nil || !schema.PrioritizedPrimaryField.AutoIncrement || schema.PrioritizedPrimaryField.DBName != column.Name {
 			if written {
-				db.Statement.WriteByte(',')
+				stmt.WriteByte(',')
 			}
 			written = true
-			db.Statement.WriteQuoted(column.Name)
+			stmt.WriteQuoted(column.Name)
 		}
 	}
 
-	db.Statement.WriteString(") VALUES (")
+	stmt.WriteString(") VALUES (")
 
 	written = false
 	for _, column := range values.Columns {
-		if db.Statement.Schema.PrioritizedPrimaryField == nil || !db.Statement.Schema.PrioritizedPrimaryField.AutoIncrement || db.Statement.Schema.PrioritizedPrimaryField.DBName != column.Name {
+		if !(schema.PrioritizedPrimaryField != nil && schema.PrioritizedPrimaryField.AutoIncrement && schema.PrioritizedPrimaryField.DBName == column.Name) {
 			if written {
-				db.Statement.WriteByte(',')
+				stmt.WriteByte(',')
 			}
 			written = true
-			db.Statement.WriteQuoted(clause.Column{
+			stmt.WriteQuoted(clause.Column{
 				Table: "excluded",
 				Name:  column.Name,
 			})
 		}
 	}
 
-	db.Statement.WriteString(")")
+	stmt.WriteString(")")
 	return outputInserted(db)
 }
 
-func outputInserted(db *gorm.DB) (boundVars map[string]interface{}) {
-	if len(db.Statement.Schema.FieldsWithDefaultDBValue) > 0 {
-		db.Statement.WriteString(" RETURNING ")
+func outputInserted(db *gorm.DB) (boundVars map[string]int) {
+	stmt := db.Statement
+	schema := stmt.Schema
+	if len(schema.FieldsWithDefaultDBValue) > 0 {
+		stmt.WriteString(" RETURNING ")
 
-		boundVars = make(map[string]interface{})
-		for idx, field := range db.Statement.Schema.FieldsWithDefaultDBValue {
+		boundVars = make(map[string]int)
+		for idx, field := range schema.FieldsWithDefaultDBValue {
 			if idx > 0 {
-				db.Statement.WriteString(",")
+				stmt.WriteString(",")
 			}
-			db.Statement.WriteString(field.DBName)
+			stmt.WriteString(field.DBName)
 		}
 
-		db.Statement.WriteString(" INTO ")
-		for idx, field := range db.Statement.Schema.FieldsWithDefaultDBValue {
+		stmt.WriteString(" INTO ")
+		for idx, field := range schema.FieldsWithDefaultDBValue {
 			if idx > 0 {
-				db.Statement.WriteString(",")
+				stmt.WriteString(",")
 			}
 
-			out := sql.NamedArg{Name: field.DBName}
-			boundVars[field.DBName] = &out
-			db.Statement.AddVar(db.Statement, &out)
-			// db.Dialector.BindVarTo(db.Statement, db.Statement, out)
+			boundVars[field.Name] = len(stmt.Vars)
+			stmt.AddVar(stmt, sql.Out{Dest: field.ReflectValueOf(stmt.ReflectValue).Addr().Interface()})
 		}
 	}
 	return
