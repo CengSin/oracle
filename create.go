@@ -71,7 +71,6 @@ func Create(db *gorm.DB) {
 					}
 				}
 
-				db.Statement.WriteString(";")
 			}
 		}
 	}
