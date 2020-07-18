@@ -115,10 +115,12 @@ func (m Migrator) HasColumn(value interface{}, field string) bool {
 			name = field.DBName
 		}
 
-		sql := "SELECT count(*) FROM USER_TAB_COLUMNS WHERE TABLE_NAME = UPPER(?) AND COLUMN_NAME = UPPER(?)"
+		sql := "SELECT count(*) FROM USER_TAB_COLUMNS WHERE TABLE_NAME = UPPER(?) AND COLUMN_NAME = "
 
 		if IsReservedWord(name) {
-			sql = "SELECT count(*) FROM USER_TAB_COLUMNS WHERE TABLE_NAME = UPPER(?) AND COLUMN_NAME = ?"
+			sql += "?"
+		} else {
+			sql += "UPPER(?)"
 		}
 
 		return m.DB.Raw(sql, stmt.Table, name).Row().Scan(&count)
