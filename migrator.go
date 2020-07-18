@@ -19,6 +19,7 @@ func (m Migrator) CurrentDatabase() (name string) {
 }
 
 func (m Migrator) CreateTable(values ...interface{}) error {
+	m.TryQuotifyReservedWords(values)
 	m.TryRemoveOnUpdate(values)
 	return m.Migrator.CreateTable(values...)
 }
@@ -105,10 +106,13 @@ func (m Migrator) HasColumn(value interface{}, field string) bool {
 			name = field.DBName
 		}
 
-		return m.DB.Raw(
-			"SELECT count(*) FROM USER_TAB_COLUMNS WHERE TABLE_NAME = UPPER(?) AND COLUMN_NAME = UPPER(?)",
-			stmt.Table, name,
-		).Row().Scan(&count)
+		sql := "SELECT count(*) FROM USER_TAB_COLUMNS WHERE TABLE_NAME = UPPER(?) AND COLUMN_NAME = UPPER(?)"
+
+		if IsReservedWord(name) {
+			sql = "SELECT count(*) FROM USER_TAB_COLUMNS WHERE TABLE_NAME = UPPER(?) AND COLUMN_NAME = ?"
+		}
+
+		return m.DB.Raw(sql, stmt.Table, name).Row().Scan(&count)
 	})
 
 	return count > 0
@@ -192,6 +196,23 @@ func (m Migrator) TryRemoveOnUpdate(value interface{}) error {
 			constraint := rel.ParseConstraint()
 			if constraint != nil {
 				rel.Field.TagSettings["CONSTRAINT"] = strings.ReplaceAll(rel.Field.TagSettings["CONSTRAINT"], fmt.Sprintf("ON UPDATE %s", constraint.OnUpdate), "")
+			}
+		}
+		return nil
+	})
+}
+
+func (m Migrator) TryQuotifyReservedWords(values []interface{}) error {
+	return m.RunWithValue(values, func(stmt *gorm.Statement) error {
+		for idx, v := range stmt.Schema.DBNames {
+			if IsReservedWord(v) {
+				stmt.Schema.DBNames[idx] = fmt.Sprintf(`"%s"`, v)
+			}
+		}
+
+		for _, v := range stmt.Schema.Fields {
+			if IsReservedWord(v.DBName) {
+				v.DBName = fmt.Sprintf(`"%s"`, v.DBName)
 			}
 		}
 		return nil
