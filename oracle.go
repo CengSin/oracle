@@ -64,33 +64,35 @@ func (d Dialector) Initialize(db *gorm.DB) (err error) {
 
 func (d Dialector) ClauseBuilders() map[string]clause.ClauseBuilder {
 	return map[string]clause.ClauseBuilder{
-		"LIMIT": func(c clause.Clause, builder clause.Builder) {
-			if limit, ok := c.Expression.(clause.Limit); ok {
-				if stmt, ok := builder.(*gorm.Statement); ok {
-					if _, ok := stmt.Clauses["ORDER BY"]; !ok {
-						s := stmt.Schema
-						builder.WriteString("ORDER BY ")
-						if s != nil && s.PrioritizedPrimaryField != nil {
-							builder.WriteQuoted(s.PrioritizedPrimaryField.DBName)
-							builder.WriteByte(' ')
-						} else {
-							builder.WriteString("(SELECT NULL FROM DUAL) ")
-						}
-					}
-				}
+		"LIMIT": d.RewriteLimit,
+	}
+}
 
-				if offset := limit.Offset; offset > 0 {
-					builder.WriteString(" OFFSET ")
-					builder.WriteString(strconv.Itoa(offset))
-					builder.WriteString(" ROWS")
-				}
-				if limit := limit.Limit; limit > 0 {
-					builder.WriteString(" FETCH NEXT ")
-					builder.WriteString(strconv.Itoa(limit))
-					builder.WriteString(" ROWS ONLY")
+func (d Dialector) RewriteLimit(c clause.Clause, builder clause.Builder) {
+	if limit, ok := c.Expression.(clause.Limit); ok {
+		if stmt, ok := builder.(*gorm.Statement); ok {
+			if _, ok := stmt.Clauses["ORDER BY"]; !ok {
+				s := stmt.Schema
+				builder.WriteString("ORDER BY ")
+				if s != nil && s.PrioritizedPrimaryField != nil {
+					builder.WriteQuoted(s.PrioritizedPrimaryField.DBName)
+					builder.WriteByte(' ')
+				} else {
+					builder.WriteString("(SELECT NULL FROM DUAL) ")
 				}
 			}
-		},
+		}
+
+		if offset := limit.Offset; offset > 0 {
+			builder.WriteString(" OFFSET ")
+			builder.WriteString(strconv.Itoa(offset))
+			builder.WriteString(" ROWS")
+		}
+		if limit := limit.Limit; limit > 0 {
+			builder.WriteString(" FETCH NEXT ")
+			builder.WriteString(strconv.Itoa(limit))
+			builder.WriteString(" ROWS ONLY")
+		}
 	}
 }
 
