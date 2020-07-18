@@ -64,17 +64,19 @@ func (merge Merge) Build(builder clause.Builder) {
 		builder.WriteByte(' ')
 		merge.WhenMatched.Build(builder)
 
-		if len(merge.WhenMatched.Where.Exprs) > 0 {
-			builder.WriteString(merge.WhenMatched.Where.Name())
+		buildWhere := func(where clause.Where) {
+			builder.WriteString(where.Name())
 			builder.WriteByte(' ')
-			merge.WhenMatched.Where.Build(builder)
+			where.Build(builder)
+		}
+
+		if len(merge.WhenMatched.Where.Exprs) > 0 {
+			buildWhere(merge.WhenMatched.Where)
 		}
 
 		if len(merge.WhenMatched.Delete.Exprs) > 0 {
 			builder.WriteString(" DELETE ")
-			builder.WriteString(merge.WhenMatched.Delete.Name())
-			builder.WriteByte(' ')
-			merge.WhenMatched.Delete.Build(builder)
+			buildWhere(merge.WhenMatched.Delete)
 		}
 	}
 

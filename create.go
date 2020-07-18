@@ -34,48 +34,6 @@ func Create(db *gorm.DB) {
 	if stmt.SQL.String() == "" {
 		values := callbacks.ConvertToCreateValues(stmt)
 		onConflict, hasConflict := stmt.Clauses["ON CONFLICT"].Expression.(clause.OnConflict)
-		doExecution := func() {
-			for idx, vals := range values.Values {
-				// HACK HACK: replace values one by one, assuming its value layout will be the same all the time, i.e. aligned
-				for idx, val := range vals {
-					stmt.Vars[idx] = val
-				}
-				// and then we insert each row one by one then put it back (i.e. last return id => smart insert)
-				// we keep track of the index so that the sub-reflected value is also correct
-
-				// BIG BUG: what if any of the transactions failed? some result might already be inserted that oracle is so
-				// sneaky that some transaction inserts will exceed the buffer and so will be pushed at unknown point,
-				// resulting in dangling row entries, so we might need to delete them if an error happens
-
-				if !db.DryRun {
-					switch result, err := stmt.ConnPool.ExecContext(stmt.Context, stmt.SQL.String(), stmt.Vars...); err {
-					case nil: // success
-						db.RowsAffected, _ = result.RowsAffected()
-
-						insertTo := stmt.ReflectValue
-						switch insertTo.Kind() {
-						case reflect.Slice, reflect.Array:
-							insertTo = insertTo.Index(idx)
-						}
-
-						if hasDefaultValues {
-							// bind returning back value to reflected value in the respective fields
-							funk.ForEach(
-								funk.Filter(schema.FieldsWithDefaultDBValue, func(field *gormSchema.Field) bool { return funk.Contains(boundVars, field.Name) }),
-								func(field *gormSchema.Field) {
-									if err = field.Set(insertTo, stmt.Vars[boundVars[field.Name]].(sql.Out).Dest); err != nil {
-										db.AddError(err)
-									}
-								},
-							)
-						}
-					default: // failure
-						db.AddError(err)
-					}
-				}
-			}
-		}
-
 		// are all columns in value the primary fields in schema only?
 		if hasConflict && funk.Contains(
 			funk.Map(values.Columns, func(c clause.Column) string { return c.Name }),
@@ -111,7 +69,6 @@ func Create(db *gorm.DB) {
 				WhenNotMatched: clauses.WhenNotMatched{Values: values},
 			})
 			stmt.Build("MERGE")
-			doExecution()
 		} else {
 			stmt.AddClauseIfNotExists(clause.Insert{Table: clause.Table{Name: stmt.Table}})
 			stmt.AddClause(clause.Values{Columns: values.Columns, Values: [][]interface{}{values.Values[0]}})
@@ -130,14 +87,50 @@ func Create(db *gorm.DB) {
 						stmt.WriteByte(',')
 					}
 					boundVars[field.Name] = len(stmt.Vars)
-
-					stmt.AddVar(stmt, sql.Out{
-						Dest: reflect.New(field.FieldType).Interface(),
-					})
+					stmt.AddVar(stmt, sql.Out{Dest: reflect.New(field.FieldType).Interface()})
 				}
 			}
-			doExecution()
+		}
+		if !db.DryRun {
+			for idx, vals := range values.Values {
+				// HACK HACK: replace values one by one, assuming its value layout will be the same all the time, i.e. aligned
+				for idx, val := range vals {
+					stmt.Vars[idx] = val
+				}
+				// and then we insert each row one by one then put the returning values back (i.e. last return id => smart insert)
+				// we keep track of the index so that the sub-reflected value is also correct
+
+				// BIG BUG: what if any of the transactions failed? some result might already be inserted that oracle is so
+				// sneaky that some transaction inserts will exceed the buffer and so will be pushed at unknown point,
+				// resulting in dangling row entries, so we might need to delete them if an error happens
+
+				switch result, err := stmt.ConnPool.ExecContext(stmt.Context, stmt.SQL.String(), stmt.Vars...); err {
+				case nil: // success
+					db.RowsAffected, _ = result.RowsAffected()
+
+					insertTo := stmt.ReflectValue
+					switch insertTo.Kind() {
+					case reflect.Slice, reflect.Array:
+						insertTo = insertTo.Index(idx)
+					}
+
+					if hasDefaultValues {
+						// bind returning value back to reflected value in the respective fields
+						funk.ForEach(
+							funk.Filter(schema.FieldsWithDefaultDBValue, func(field *gormSchema.Field) bool {
+								return funk.Contains(boundVars, field.Name)
+							}),
+							func(field *gormSchema.Field) {
+								if err = field.Set(insertTo, stmt.Vars[boundVars[field.Name]].(sql.Out).Dest); err != nil {
+									db.AddError(err)
+								}
+							},
+						)
+					}
+				default: // failure
+					db.AddError(err)
+				}
+			}
 		}
 	}
-
 }
