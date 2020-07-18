@@ -82,7 +82,7 @@ func (merge Merge) Build(builder clause.Builder) {
 
 	if len(merge.WhenNotMatched.Columns) > 0 {
 		if len(merge.WhenNotMatched.Values.Values) != 1 {
-			panic("cannot insert more than one rows for Oracle SQL language restriction")
+			panic("cannot insert more than one rows due to Oracle SQL language restriction")
 		}
 
 		builder.WriteString(" WHEN NOT MATCHED THEN")
