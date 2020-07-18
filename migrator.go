@@ -73,7 +73,10 @@ func (m Migrator) RenameTable(oldName, newName interface{}) error {
 		}
 	}
 
-	return m.DB.Exec("RENAME TABLE ? TO ?", clause.Table{Name: oldTable}, clause.Table{Name: newTable}).Error
+	return m.DB.Exec("RENAME TABLE ? TO ?",
+		clause.Table{Name: oldTable},
+		clause.Table{Name: newTable},
+	).Error
 }
 
 func (m Migrator) DropColumn(value interface{}, name string) error {
@@ -83,7 +86,9 @@ func (m Migrator) DropColumn(value interface{}, name string) error {
 		}
 
 		return m.DB.Exec(
-			"ALTER TABLE ? DROP ?", clause.Table{Name: stmt.Table}, clause.Column{Name: name},
+			"ALTER TABLE ? DROP ?",
+			clause.Table{Name: stmt.Table},
+			clause.Column{Name: name},
 		).Error
 	})
 }
@@ -93,7 +98,9 @@ func (m Migrator) AlterColumn(value interface{}, field string) error {
 		if field := stmt.Schema.LookUpField(field); field != nil {
 			return m.DB.Exec(
 				"ALTER TABLE ? MODIFY ? ?",
-				clause.Table{Name: stmt.Table}, clause.Column{Name: field.DBName}, m.FullDataTypeOf(field),
+				clause.Table{Name: stmt.Table},
+				clause.Column{Name: field.DBName},
+				m.FullDataTypeOf(field),
 			).Error
 		}
 		return fmt.Errorf("failed to look up field with name: %s", field)
