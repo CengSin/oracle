@@ -36,6 +36,10 @@ func New(config Config) gorm.Dialector {
 	return &Dialector{Config: &config}
 }
 
+func (d Dialector) DummyTableName() string {
+	return "DUAL"
+}
+
 func (d Dialector) Name() string {
 	return "oracle"
 }
@@ -78,7 +82,9 @@ func (d Dialector) RewriteLimit(c clause.Clause, builder clause.Builder) {
 					builder.WriteQuoted(s.PrioritizedPrimaryField.DBName)
 					builder.WriteByte(' ')
 				} else {
-					builder.WriteString("(SELECT NULL FROM DUAL) ")
+					builder.WriteString("(SELECT NULL FROM ")
+					builder.WriteString(d.DummyTableName())
+					builder.WriteString(")")
 				}
 			}
 		}

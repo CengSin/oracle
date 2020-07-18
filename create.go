@@ -56,7 +56,7 @@ func Create(db *gorm.DB) {
 						}).([]clause.Column),
 					},
 					clause.From{
-						Tables: []clause.Table{{Name: "DUAL"}},
+						Tables: []clause.Table{{Name: db.Dialector.(Dialector).DummyTableName()}},
 					},
 				},
 				On: funk.Map(schema.PrimaryFields, func(field *gormSchema.Field) clause.Expression {

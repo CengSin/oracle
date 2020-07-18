@@ -14,7 +14,9 @@ type Migrator struct {
 }
 
 func (m Migrator) CurrentDatabase() (name string) {
-	m.DB.Raw(`SELECT ORA_DATABASE_NAME as "Current Database" FROM DUAL`).Row().Scan(&name)
+	m.DB.Raw(
+		fmt.Sprintf(`SELECT ORA_DATABASE_NAME as "Current Database" FROM %s`, m.Dialector.(Dialector).DummyTableName()),
+	).Row().Scan(&name)
 	return
 }
 
