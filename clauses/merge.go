@@ -57,12 +57,14 @@ func (merge Merge) Build(builder clause.Builder) {
 		on.Build(builder)
 	}
 	builder.WriteString(")")
+
 	if len(merge.WhenMatched.Set) > 0 {
+		pred := merge.WhenMatched
 		builder.WriteString(" WHEN MATCHED THEN")
 		builder.WriteString(" UPDATE ")
-		builder.WriteString(merge.WhenMatched.Name())
+		builder.WriteString(pred.Name())
 		builder.WriteByte(' ')
-		merge.WhenMatched.Build(builder)
+		pred.Build(builder)
 
 		buildWhere := func(where clause.Where) {
 			builder.WriteString(where.Name())
@@ -70,29 +72,30 @@ func (merge Merge) Build(builder clause.Builder) {
 			where.Build(builder)
 		}
 
-		if len(merge.WhenMatched.Where.Exprs) > 0 {
-			buildWhere(merge.WhenMatched.Where)
+		if len(pred.Where.Exprs) > 0 {
+			buildWhere(pred.Where)
 		}
 
-		if len(merge.WhenMatched.Delete.Exprs) > 0 {
+		if len(pred.Delete.Exprs) > 0 {
 			builder.WriteString(" DELETE ")
-			buildWhere(merge.WhenMatched.Delete)
+			buildWhere(pred.Delete)
 		}
 	}
 
 	if len(merge.WhenNotMatched.Columns) > 0 {
-		if len(merge.WhenNotMatched.Values.Values) != 1 {
+		pred := merge.WhenNotMatched
+		if len(pred.Values.Values) != 1 {
 			panic("cannot insert more than one rows due to Oracle SQL language restriction")
 		}
 
 		builder.WriteString(" WHEN NOT MATCHED THEN")
 		builder.WriteString(" INSERT ")
-		merge.WhenNotMatched.Build(builder)
+		pred.Build(builder)
 
-		if len(merge.WhenNotMatched.Where.Exprs) > 0 {
-			builder.WriteString(merge.WhenNotMatched.Where.Name())
+		if len(pred.Where.Exprs) > 0 {
+			builder.WriteString(pred.Where.Name())
 			builder.WriteByte(' ')
-			merge.WhenMatched.Where.Build(builder)
+			pred.Where.Build(builder)
 		}
 	}
 }
