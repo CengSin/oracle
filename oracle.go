@@ -45,6 +45,8 @@ func (d Dialector) Name() string {
 }
 
 func (d Dialector) Initialize(db *gorm.DB) (err error) {
+	db.NamingStrategy = Namer{}
+
 	// register callbacks
 	callbacks.RegisterDefaultCallbacks(db, &callbacks.Config{WithReturning: true})
 
@@ -128,6 +130,7 @@ func (d Dialector) QuoteTo(writer clause.Writer, str string) {
 		writer.WriteByte('"')
 		defer writer.WriteByte('"')
 	}
+
 	writer.WriteString(str)
 }
 

@@ -43,7 +43,7 @@ func (m Migrator) HasTable(value interface{}) bool {
 	var count int64
 
 	m.RunWithValue(value, func(stmt *gorm.Statement) error {
-		return m.DB.Raw("SELECT count(*) FROM user_tables WHERE table_name = UPPER(?)", stmt.Table).Row().Scan(&count)
+		return m.DB.Raw("SELECT count(*) FROM user_tables WHERE table_name = ?", stmt.Table).Row().Scan(&count)
 	})
 
 	return count > 0
@@ -115,15 +115,7 @@ func (m Migrator) HasColumn(value interface{}, field string) bool {
 			name = field.DBName
 		}
 
-		sql := "SELECT count(*) FROM USER_TAB_COLUMNS WHERE TABLE_NAME = UPPER(?) AND COLUMN_NAME = "
-
-		if IsReservedWord(name) {
-			sql += "?"
-		} else {
-			sql += "UPPER(?)"
-		}
-
-		return m.DB.Raw(sql, stmt.Table, name).Row().Scan(&count)
+		return m.DB.Raw("SELECT count(*) FROM USER_TAB_COLUMNS WHERE TABLE_NAME = ? AND COLUMN_NAME = ?", stmt.Table, name).Row().Scan(&count)
 	})
 
 	return count > 0
@@ -156,7 +148,7 @@ func (m Migrator) HasConstraint(value interface{}, name string) bool {
 	var count int64
 	m.RunWithValue(value, func(stmt *gorm.Statement) error {
 		return m.DB.Raw(
-			"SELECT count(*) FROM USER_CONSTRAINTS WHERE TABLE_NAME = UPPER(?) AND CONSTRAINT_NAME = UPPER(?)",
+			"SELECT count(*) FROM USER_CONSTRAINTS WHERE TABLE_NAME = ? AND CONSTRAINT_NAME = ?",
 			stmt.Table, name,
 		).Row().Scan(&count)
 	})
@@ -182,7 +174,7 @@ func (m Migrator) HasIndex(value interface{}, name string) bool {
 		}
 
 		return m.DB.Raw(
-			"SELECT count(*) FROM USER_INDEXES WHERE TABLE_NAME = UPPER(?) AND INDEX_NAME = UPPER(?)",
+			"SELECT count(*) FROM USER_INDEXES WHERE TABLE_NAME = ? AND INDEX_NAME = ?",
 			stmt.Table, name,
 		).Row().Scan(&count)
 	})
