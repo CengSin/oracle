@@ -28,12 +28,15 @@ func (m Migrator) CreateTable(values ...interface{}) error {
 
 func (m Migrator) DropTable(values ...interface{}) error {
 	values = m.ReorderModels(values, false)
-	tx := m.DB.Session(&gorm.Session{})
 	for i := len(values) - 1; i >= 0; i-- {
-		if err := m.RunWithValue(values[i], func(stmt *gorm.Statement) error {
-			return tx.Exec("DROP TABLE ? CASCADE CONSTRAINTS", clause.Table{Name: stmt.Table}).Error
-		}); err != nil {
-			return err
+		value := values[i]
+		tx := m.DB.Session(&gorm.Session{})
+		if m.HasTable(value) {
+			if err := m.RunWithValue(value, func(stmt *gorm.Statement) error {
+				return tx.Exec("DROP TABLE ? CASCADE CONSTRAINTS", clause.Table{Name: stmt.Table}).Error
+			}); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
