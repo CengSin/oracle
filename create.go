@@ -65,10 +65,11 @@ func Create(db *gorm.DB) {
 						Value:  clause.Column{Table: clauses.MergeDefaultExcludeName(), Name: field.DBName},
 					}
 				}).([]clause.Expression),
-				WhenMatched:    clauses.WhenMathced{Set: onConflict.DoUpdates},
-				WhenNotMatched: clauses.WhenNotMatched{Values: values},
 			})
-			stmt.Build("MERGE")
+			stmt.AddClauseIfNotExists(clauses.WhenMatched{Set: onConflict.DoUpdates})
+			stmt.AddClauseIfNotExists(clauses.WhenNotMatched{Values: values})
+
+			stmt.Build("MERGE", "WHEN MATCHED", "WHEN NOT MATCHED")
 		} else {
 			stmt.AddClauseIfNotExists(clause.Insert{Table: clause.Table{Name: stmt.Table}})
 			stmt.AddClause(clause.Values{Columns: values.Columns, Values: [][]interface{}{values.Values[0]}})
@@ -91,6 +92,7 @@ func Create(db *gorm.DB) {
 				}
 			}
 		}
+
 		if !db.DryRun {
 			for idx, vals := range values.Values {
 				// HACK HACK: replace values one by one, assuming its value layout will be the same all the time, i.e. aligned
