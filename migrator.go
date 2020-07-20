@@ -118,6 +118,10 @@ func (m Migrator) HasColumn(value interface{}, field string) bool {
 			name = field.DBName
 		}
 
+		if !IsReservedWord(name) {
+			name = strings.ToUpper(name)
+		}
+
 		return m.DB.Raw("SELECT count(*) FROM USER_TAB_COLUMNS WHERE TABLE_NAME = ? AND COLUMN_NAME = ?", stmt.Table, name).Row().Scan(&count)
 	})
 
