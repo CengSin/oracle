@@ -189,10 +189,11 @@ func (d Dialector) DataTypeOf(field *schema.Field) string {
 		// It means that for a single-byte character set, you can store up to 4000 characters in a VARCHAR2 column.
 		if size > 0 && size < 4000 {
 			sqlType = fmt.Sprintf("VARCHAR2(%d)", size)
+		} else {
+			// CHARACTER LARGE OBJECT
+			sqlType = "CLOB"
 		}
 
-		// CHARACTER LARGE OBJECT
-		sqlType = "CLOB"
 	case schema.Time:
 		sqlType = "TIMESTAMP WITH TIME ZONE"
 		if field.NotNull || field.PrimaryKey {
