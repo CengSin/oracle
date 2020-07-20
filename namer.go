@@ -20,3 +20,7 @@ func ConvertNonReservedWordToCap(x string) string {
 func (n Namer) TableName(table string) (name string) {
 	return ConvertNonReservedWordToCap(n.NamingStrategy.TableName(table))
 }
+
+func (n Namer) JoinTableName(table string) (name string) {
+	return ConvertNonReservedWordToCap(n.NamingStrategy.JoinTableName(table))
+}
