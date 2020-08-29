@@ -97,6 +97,15 @@ func Create(db *gorm.DB) {
 			for idx, vals := range values.Values {
 				// HACK HACK: replace values one by one, assuming its value layout will be the same all the time, i.e. aligned
 				for idx, val := range vals {
+					switch v := val.(type) {
+					case bool:
+						if v {
+							val = 1
+						} else {
+							val = 0
+						}
+					}
+
 					stmt.Vars[idx] = val
 				}
 				// and then we insert each row one by one then put the returning values back (i.e. last return id => smart insert)
