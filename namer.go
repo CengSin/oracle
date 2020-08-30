@@ -1,8 +1,6 @@
 package oracle
 
 import (
-	"strings"
-
 	"gorm.io/gorm/schema"
 )
 
@@ -11,9 +9,6 @@ type Namer struct {
 }
 
 func ConvertNameToFormat(x string) string {
-	if !IsReservedWord(x) {
-		x = strings.ToUpper(x)
-	}
 	return x
 }
 

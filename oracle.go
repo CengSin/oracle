@@ -127,12 +127,8 @@ func (d Dialector) BindVarTo(writer clause.Writer, stmt *gorm.Statement, v inter
 }
 
 func (d Dialector) QuoteTo(writer clause.Writer, str string) {
-	// 1. reserved word, 2. hack: table join aliases
-	if IsReservedWord(str) || strings.Contains(str, "__") {
-		writer.WriteByte('"')
-		defer writer.WriteByte('"')
-	}
-
+	writer.WriteByte('"')
+	defer writer.WriteByte('"')
 	writer.WriteString(str)
 }
 
