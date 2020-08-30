@@ -46,34 +46,39 @@ func (m Migrator) HasTable(value interface{}) bool {
 	var count int64
 
 	m.RunWithValue(value, func(stmt *gorm.Statement) error {
-		return m.DB.Raw("SELECT count(*) FROM user_tables WHERE table_name = ?", ConvertNonReservedWordToCap(stmt.Table)).Row().Scan(&count)
+		return m.DB.Raw("SELECT COUNT(*) FROM USER_TABLES WHERE TABLE_NAME = ?",
+			ConvertNonReservedWordToCap(stmt.Table),
+		).Row().Scan(&count)
 	})
 
 	return count > 0
 }
 
-func (m Migrator) RenameTable(oldName, newName interface{}) error {
-	var oldTable, newTable string
-	if v, ok := oldName.(string); ok {
-		oldTable = v
-	} else {
-		stmt := &gorm.Statement{DB: m.DB}
-		if err := stmt.Parse(oldName); err == nil {
-			oldTable = stmt.Table
+func (m Migrator) RenameTable(oldName, newName interface{}) (err error) {
+	resolveTable := func(name interface{}) (result string, err error) {
+		if v, ok := name.(string); ok {
+			result = v
 		} else {
-			return err
+			stmt := &gorm.Statement{DB: m.DB}
+			if err = stmt.Parse(name); err == nil {
+				result = stmt.Table
+			}
 		}
+		return
 	}
 
-	if v, ok := newName.(string); ok {
-		newTable = v
-	} else {
-		stmt := &gorm.Statement{DB: m.DB}
-		if err := stmt.Parse(newName); err == nil {
-			newTable = stmt.Table
-		} else {
-			return err
-		}
+	var oldTable, newTable string
+
+	if oldTable, err = resolveTable(oldName); err != nil {
+		return
+	}
+
+	if newTable, err = resolveTable(newName); err != nil {
+		return
+	}
+
+	if !m.HasTable(oldTable) {
+		return
 	}
 
 	return m.DB.Exec("RENAME TABLE ? TO ?",
@@ -82,7 +87,27 @@ func (m Migrator) RenameTable(oldName, newName interface{}) error {
 	).Error
 }
 
+func (m Migrator) AddColumn(value interface{}, field string) error {
+	if !m.HasColumn(value, field) {
+		return nil
+	}
+
+	return m.RunWithValue(value, func(stmt *gorm.Statement) error {
+		if field := stmt.Schema.LookUpField(field); field != nil {
+			return m.DB.Exec(
+				"ALTER TABLE ? ADD ? ?",
+				clause.Table{Name: stmt.Table}, clause.Column{Name: field.DBName}, m.DB.Migrator().FullDataTypeOf(field),
+			).Error
+		}
+		return fmt.Errorf("failed to look up field with name: %s", field)
+	})
+}
+
 func (m Migrator) DropColumn(value interface{}, name string) error {
+	if !m.HasColumn(value, name) {
+		return nil
+	}
+
 	return m.RunWithValue(value, func(stmt *gorm.Statement) error {
 		if field := stmt.Schema.LookUpField(name); field != nil {
 			name = field.DBName
@@ -97,6 +122,10 @@ func (m Migrator) DropColumn(value interface{}, name string) error {
 }
 
 func (m Migrator) AlterColumn(value interface{}, field string) error {
+	if !m.HasColumn(value, field) {
+		return nil
+	}
+
 	return m.RunWithValue(value, func(stmt *gorm.Statement) error {
 		if field := stmt.Schema.LookUpField(field); field != nil {
 			return m.DB.Exec(
@@ -122,7 +151,7 @@ func (m Migrator) HasColumn(value interface{}, field string) bool {
 			name = strings.ToUpper(name)
 		}
 
-		return m.DB.Raw("SELECT count(*) FROM USER_TAB_COLUMNS WHERE TABLE_NAME = ? AND COLUMN_NAME = ?", ConvertNonReservedWordToCap(stmt.Table), ConvertNonReservedWordToCap(name)).Row().Scan(&count)
+		return m.DB.Raw("SELECT COUNT(*) FROM USER_TAB_COLUMNS WHERE TABLE_NAME = ? AND COLUMN_NAME = ?", ConvertNonReservedWordToCap(stmt.Table), ConvertNonReservedWordToCap(name)).Row().Scan(&count)
 	})
 
 	return count > 0
@@ -155,7 +184,7 @@ func (m Migrator) HasConstraint(value interface{}, name string) bool {
 	var count int64
 	m.RunWithValue(value, func(stmt *gorm.Statement) error {
 		return m.DB.Raw(
-			"SELECT count(*) FROM USER_CONSTRAINTS WHERE TABLE_NAME = ? AND CONSTRAINT_NAME = ?",
+			"SELECT COUNT(*) FROM USER_CONSTRAINTS WHERE TABLE_NAME = ? AND CONSTRAINT_NAME = ?",
 			ConvertNonReservedWordToCap(stmt.Table), ConvertNonReservedWordToCap(name),
 		).Row().Scan(&count)
 	})
@@ -181,7 +210,7 @@ func (m Migrator) HasIndex(value interface{}, name string) bool {
 		}
 
 		return m.DB.Raw(
-			"SELECT count(*) FROM USER_INDEXES WHERE TABLE_NAME = ? AND INDEX_NAME = ?",
+			"SELECT COUNT(*) FROM USER_INDEXES WHERE TABLE_NAME = ? AND INDEX_NAME = ?",
 			ConvertNonReservedWordToCap(stmt.Table), ConvertNonReservedWordToCap(name),
 		).Row().Scan(&count)
 	})
