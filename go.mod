@@ -6,8 +6,9 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/emirpasic/gods v1.12.0
 	github.com/godror/godror v0.19.4
+	github.com/sirupsen/logrus v1.6.0
 	github.com/thoas/go-funk v0.7.0
 	gorm.io/gorm v1.9.19
 )
 
-replace github.com/godror/godror => github.com/stevefan1999-personal/godror v0.17.1-0.20200717180745-d483f0dacc92
+replace gorm.io/gorm => E:/Git/github.com/stevefan1999-personal/gorm

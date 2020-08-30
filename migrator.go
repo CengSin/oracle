@@ -47,7 +47,7 @@ func (m Migrator) HasTable(value interface{}) bool {
 
 	m.RunWithValue(value, func(stmt *gorm.Statement) error {
 		return m.DB.Raw("SELECT COUNT(*) FROM USER_TABLES WHERE TABLE_NAME = ?",
-			ConvertNonReservedWordToCap(stmt.Table),
+			m.Migrator.DB.NamingStrategy.TableName(stmt.Table),
 		).Row().Scan(&count)
 	})
 
@@ -147,11 +147,10 @@ func (m Migrator) HasColumn(value interface{}, field string) bool {
 			name = field.DBName
 		}
 
-		if !IsReservedWord(name) {
-			name = strings.ToUpper(name)
-		}
-
-		return m.DB.Raw("SELECT COUNT(*) FROM USER_TAB_COLUMNS WHERE TABLE_NAME = ? AND COLUMN_NAME = ?", ConvertNonReservedWordToCap(stmt.Table), ConvertNonReservedWordToCap(name)).Row().Scan(&count)
+		return m.DB.Raw("SELECT COUNT(*) FROM USER_TAB_COLUMNS WHERE TABLE_NAME = ? AND COLUMN_NAME = ?",
+			m.Migrator.DB.NamingStrategy.TableName(stmt.Table),
+			m.Migrator.DB.NamingStrategy.ColumnName(stmt.Table, name),
+		).Row().Scan(&count)
 	})
 
 	return count > 0
@@ -185,7 +184,8 @@ func (m Migrator) HasConstraint(value interface{}, name string) bool {
 	m.RunWithValue(value, func(stmt *gorm.Statement) error {
 		return m.DB.Raw(
 			"SELECT COUNT(*) FROM USER_CONSTRAINTS WHERE TABLE_NAME = ? AND CONSTRAINT_NAME = ?",
-			ConvertNonReservedWordToCap(stmt.Table), ConvertNonReservedWordToCap(name),
+			m.Migrator.DB.NamingStrategy.TableName(stmt.Table),
+			ConvertNameToFormat(name),
 		).Row().Scan(&count)
 	})
 
@@ -211,7 +211,8 @@ func (m Migrator) HasIndex(value interface{}, name string) bool {
 
 		return m.DB.Raw(
 			"SELECT COUNT(*) FROM USER_INDEXES WHERE TABLE_NAME = ? AND INDEX_NAME = ?",
-			ConvertNonReservedWordToCap(stmt.Table), ConvertNonReservedWordToCap(name),
+			m.Migrator.DB.NamingStrategy.TableName(stmt.Table),
+			m.Migrator.DB.NamingStrategy.IndexName(stmt.Table, name),
 		).Row().Scan(&count)
 	})
 
