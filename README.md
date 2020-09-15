@@ -19,3 +19,7 @@ func main() {
     // do somethings
 }
 ```
+
+## 目前已知的bug
+
+- db.Save(v interface{})在主键冲突时依旧会执行Create()而不是Update()
