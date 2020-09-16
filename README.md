@@ -1,11 +1,19 @@
 # GORM Oracle Driver
 
+#Description
+
+GORM Oracle driver for connect Oracle DB and Manage Oracle DB
+
+## Required dependency Install
+
+- see [ODPI-C Installation.](https://oracle.github.io/odpi/doc/installation.html)
+
 ## Quick Start
 
 ```go
 import (
 	"fmt"
-	oracle "github.com/cengsin/gorm-driver-oracle"
+	"github.com/cengsin/oracle"
 	"gorm.io/gorm"
 	"log"
 )
@@ -20,4 +28,6 @@ func main() {
 }
 ```
 
-## 目前已知的bug
+## Unsolved Bugs
+
+
