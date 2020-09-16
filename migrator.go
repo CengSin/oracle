@@ -46,9 +46,7 @@ func (m Migrator) HasTable(value interface{}) bool {
 	var count int64
 
 	m.RunWithValue(value, func(stmt *gorm.Statement) error {
-		return m.DB.Raw("SELECT COUNT(*) FROM USER_TABLES WHERE TABLE_NAME = ?",
-			m.Migrator.DB.NamingStrategy.TableName(stmt.Table),
-		).Row().Scan(&count)
+		return m.DB.Raw("SELECT COUNT(*) FROM USER_TABLES WHERE TABLE_NAME = ?", stmt.Table).Row().Scan(&count)
 	})
 
 	return count > 0
@@ -122,6 +120,7 @@ func (m Migrator) DropColumn(value interface{}, name string) error {
 }
 
 func (m Migrator) AlterColumn(value interface{}, field string) error {
+	field = strings.ToUpper(field)
 	if !m.HasColumn(value, field) {
 		return nil
 	}
@@ -141,19 +140,9 @@ func (m Migrator) AlterColumn(value interface{}, field string) error {
 
 func (m Migrator) HasColumn(value interface{}, field string) bool {
 	var count int64
-	m.RunWithValue(value, func(stmt *gorm.Statement) error {
-		name := field
-		if field := stmt.Schema.LookUpField(field); field != nil {
-			name = field.DBName
-		}
-
-		return m.DB.Raw("SELECT COUNT(*) FROM USER_TAB_COLUMNS WHERE TABLE_NAME = ? AND COLUMN_NAME = ?",
-			m.Migrator.DB.NamingStrategy.TableName(stmt.Table),
-			m.Migrator.DB.NamingStrategy.ColumnName(stmt.Table, name),
-		).Row().Scan(&count)
-	})
-
-	return count > 0
+	return m.RunWithValue(value, func(stmt *gorm.Statement) error {
+		return m.DB.Raw("SELECT COUNT(*) FROM USER_TAB_COLUMNS WHERE TABLE_NAME = ? AND COLUMN_NAME = ?", stmt.Table, field).Row().Scan(&count)
+	}) == nil && count > 0
 }
 
 func (m Migrator) CreateConstraint(value interface{}, name string) error {
@@ -181,15 +170,11 @@ func (m Migrator) DropConstraint(value interface{}, name string) error {
 
 func (m Migrator) HasConstraint(value interface{}, name string) bool {
 	var count int64
-	m.RunWithValue(value, func(stmt *gorm.Statement) error {
+	return m.RunWithValue(value, func(stmt *gorm.Statement) error {
 		return m.DB.Raw(
-			"SELECT COUNT(*) FROM USER_CONSTRAINTS WHERE TABLE_NAME = ? AND CONSTRAINT_NAME = ?",
-			m.Migrator.DB.NamingStrategy.TableName(stmt.Table),
-			ConvertNameToFormat(name),
+			"SELECT COUNT(*) FROM USER_CONSTRAINTS WHERE TABLE_NAME = ? AND CONSTRAINT_NAME = ?", stmt.Table, name,
 		).Row().Scan(&count)
-	})
-
-	return count > 0
+	}) == nil && count > 0
 }
 
 func (m Migrator) DropIndex(value interface{}, name string) error {

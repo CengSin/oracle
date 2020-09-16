@@ -45,7 +45,6 @@ func (d Dialector) Name() string {
 }
 
 func (d Dialector) Initialize(db *gorm.DB) (err error) {
-	db.NamingStrategy = Namer{}
 	d.DefaultStringSize = 1024
 
 	// register callbacks
@@ -172,15 +171,25 @@ func (d Dialector) DataTypeOf(field *schema.Field) string {
 
 		addAutoIncrementWhenAvailable()
 	case schema.String:
-		size := funk.MaxInt([]int{int(d.DefaultStringSize), field.Size}).(int)
+		size := field.Size
+		defaultSize := d.DefaultStringSize
 
-		// A VARCHAR2 column can store a value that ranges from 1 to 4000 bytes.
-		// It means that for a single-byte character set, you can store up to 4000 characters in a VARCHAR2 column.
-		if size > 0 && size < 4000 {
-			sqlType = fmt.Sprintf("VARCHAR2(%d)", size)
-		} else {
-			// CHARACTER LARGE OBJECT
+		if size == 0 {
+			if defaultSize > 0 {
+				size = int(defaultSize)
+			} else {
+				hasIndex := field.TagSettings["INDEX"] != "" || field.TagSettings["UNIQUE"] != ""
+				// TEXT, GEOMETRY or JSON column can't have a default value
+				if field.PrimaryKey || field.HasDefaultValue || hasIndex {
+					size = 191 // utf8mb4
+				}
+			}
+		}
+
+		if size >= 2000 {
 			sqlType = "CLOB"
+		} else {
+			sqlType = fmt.Sprintf("VARCHAR2(%d)", size)
 		}
 
 	case schema.Time:
