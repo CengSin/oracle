@@ -30,4 +30,23 @@ func main() {
 
 ## Unsolved Bugs
 
+by gorm code: 
+
+```go
+userP := new(UserInfo)
+db.Model(&UserInfo{}).Select("USER_NAME, sum(USER_AGE) as total").Where("USER_NAME like ?", "%zhang%").Group("USER_NAME").First(userP)
+```
+
+generator sql like this:
+
+```sql
+SELECT USER_NAME, sum(USER_AGE) as total
+FROM USERINFO
+WHERE USER_NAME like '%zhang%'
+GROUP BY USER_NAME
+ORDER BY USERINFO.ID FETCH NEXT 1 ROWS ONLY
+```
+
+this is a sql that have syntax errors. 
+
 
