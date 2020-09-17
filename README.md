@@ -64,22 +64,4 @@ type Email struct {
 
 Oracle DB default name strategy is Upper String
 
-#### bug3 - Transaction
-
-```go
-	tx := db.Begin()
-
-	fmt.Println(splitStr + "Email Create Row" + splitStr)
-
-    // create a email obj
-	email := Email{EmailStr: "15262040158@163.com"}
-	db.Create(&email)
-
-    // duplication primary key , so insert failed, but transaction not working
-	user1 := UserInfo{Id: 8, Name: "Jinzhu2", Age: 19, Birthday: time.Now(), EmailId: strconv.FormatInt(email.Id, 10)}
-	if err := db.Create(&user1).Error; err != nil {
-		tx.Rollback()
-	}
-	tx.Commit()
-```
 
