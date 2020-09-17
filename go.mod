@@ -1,4 +1,4 @@
-module github.com/cengsin/gorm-driver-oracle
+module github.com/cengsin/oracle
 
 go 1.14
 
