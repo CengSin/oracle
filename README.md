@@ -30,7 +30,9 @@ func main() {
 
 ## Unsolved Bugs
 
-by gorm code: 
+#### bug1 - Group By
+
+by gorm [code](https://gorm.io/zh_CN/docs/query.html#Group-amp-Having): 
 
 ```go
 userP := new(UserInfo)
@@ -49,4 +51,16 @@ ORDER BY USERINFO.ID FETCH NEXT 1 ROWS ONLY
 
 this is a sql that have syntax errors. 
 
+#### bug2 - TableName
+
+If TableName() is not implemented, the default table name will become lower
+
+```go
+type Email struct {
+	Id       int64  `gorm:"column:ID;primaryKey;AUTOINCREMENT"`
+	EmailStr string `gorm:"column:EMAIL;NOT NULL"`
+}
+```
+
+Oracle DB default name strategy is Upper String
 
