@@ -166,6 +166,7 @@ func (m Migrator) DropConstraint(value interface{}, name string) error {
 }
 
 func (m Migrator) HasConstraint(value interface{}, name string) bool {
+	name = strings.ToUpper(name)
 	var count int64
 	return m.RunWithValue(value, func(stmt *gorm.Statement) error {
 		return m.DB.Raw(
