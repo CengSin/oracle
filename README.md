@@ -85,7 +85,7 @@ dpiStmt_execute(mode=32 arrLen=-1): ORA-01430: column being added already exists
 
 throw error msg if created struct not set gorm column value  
 
-oracle default column is Upper, Golang default Naming is BigHumpNaming, not equals
+oracle default column is Upper, Golang default Naming is Camel-Case, not equals
 
 ```log
 failed to look up field with name: NAME
