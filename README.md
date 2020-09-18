@@ -2,7 +2,7 @@
 
 ## Description
 
-GORM Oracle driver for connect Oracle DB and Manage Oracle DB
+GORM Oracle driver for connect Oracle DB and Manage Oracle DB, Based on [stevefan1999-personal/gorm-driver-oracle](https://github.com/stevefan1999-personal/gorm-driver-oracle)
 
 ## Required dependency Install
 
