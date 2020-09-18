@@ -53,6 +53,7 @@ this is a sql that have syntax errors.
 
 #### bug2 - TableName
 
+
 If TableName() is not implemented, the default table name will become lower
 
 ```go
@@ -63,5 +64,13 @@ type Email struct {
 ```
 
 Oracle DB default name strategy is Upper String
+
+## Easter egg 
+
+![](https://img.shields.io/badge/-Easter%20egg-orange)
+
+#### Create by Map
+
+[When creating from map, hooks won’t be invoked, associations won’t be saved and primary key values won’t be back filled](https://gorm.io/zh_CN/docs/create.html#Create-From-Map)
 
 
