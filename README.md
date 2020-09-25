@@ -6,6 +6,8 @@ GORM Oracle driver for connect Oracle DB and Manage Oracle DB, Based on [stevefa
 
 ## Required dependency Install
 
+- Oracle 12C+
+- Golang 1.13+
 - see [ODPI-C Installation.](https://oracle.github.io/odpi/doc/installation.html)
 
 ## Quick Start
