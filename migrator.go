@@ -21,8 +21,10 @@ func (m Migrator) CurrentDatabase() (name string) {
 }
 
 func (m Migrator) CreateTable(values ...interface{}) error {
-	m.TryQuotifyReservedWords(values)
-	m.TryRemoveOnUpdate(values)
+	for _, value := range values {
+		m.TryQuotifyReservedWords(value)
+		m.TryRemoveOnUpdate(value)
+	}
 	return m.Migrator.CreateTable(values...)
 }
 
@@ -213,31 +215,41 @@ func (m Migrator) RenameIndex(value interface{}, oldName, newName string) error 
 	})
 }
 
-func (m Migrator) TryRemoveOnUpdate(value interface{}) error {
-	return m.RunWithValue(value, func(stmt *gorm.Statement) error {
-		for _, rel := range stmt.Schema.Relationships.Relations {
-			constraint := rel.ParseConstraint()
-			if constraint != nil {
-				rel.Field.TagSettings["CONSTRAINT"] = strings.ReplaceAll(rel.Field.TagSettings["CONSTRAINT"], fmt.Sprintf("ON UPDATE %s", constraint.OnUpdate), "")
+func (m Migrator) TryRemoveOnUpdate(values ...interface{}) error {
+	for _, value := range values {
+		if err := m.RunWithValue(value, func(stmt *gorm.Statement) error {
+			for _, rel := range stmt.Schema.Relationships.Relations {
+				constraint := rel.ParseConstraint()
+				if constraint != nil {
+					rel.Field.TagSettings["CONSTRAINT"] = strings.ReplaceAll(rel.Field.TagSettings["CONSTRAINT"], fmt.Sprintf("ON UPDATE %s", constraint.OnUpdate), "")
+				}
 			}
+			return nil
+		}); err != nil {
+			return err
 		}
-		return nil
-	})
+	}
+	return nil
 }
 
-func (m Migrator) TryQuotifyReservedWords(values []interface{}) error {
-	return m.RunWithValue(values, func(stmt *gorm.Statement) error {
-		for idx, v := range stmt.Schema.DBNames {
-			if IsReservedWord(v) {
-				stmt.Schema.DBNames[idx] = fmt.Sprintf(`"%s"`, v)
+func (m Migrator) TryQuotifyReservedWords(values ...interface{}) error {
+	for _, value := range values {
+		if err := m.RunWithValue(value, func(stmt *gorm.Statement) error {
+			for idx, v := range stmt.Schema.DBNames {
+				if IsReservedWord(v) {
+					stmt.Schema.DBNames[idx] = fmt.Sprintf(`"%s"`, v)
+				}
 			}
-		}
 
-		for _, v := range stmt.Schema.Fields {
-			if IsReservedWord(v.DBName) {
-				v.DBName = fmt.Sprintf(`"%s"`, v.DBName)
+			for _, v := range stmt.Schema.Fields {
+				if IsReservedWord(v.DBName) {
+					v.DBName = fmt.Sprintf(`"%s"`, v.DBName)
+				}
 			}
+			return nil
+		}); err != nil {
+			return err
 		}
-		return nil
-	})
+	}
+	return nil
 }
