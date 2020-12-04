@@ -1,8 +1,6 @@
 package oracle
 
 import (
-	"strings"
-
 	"github.com/emirpasic/gods/sets/hashset"
 	"github.com/thoas/go-funk"
 )
@@ -10,7 +8,7 @@ import (
 var ReservedWords = hashset.New(funk.Map(ReservedWordsList, func(s string) interface{} { return s }).([]interface{})...)
 
 func IsReservedWord(v string) bool {
-	return ReservedWords.Contains(strings.ToUpper(v))
+	return ReservedWords.Contains(v)
 }
 
 var ReservedWordsList = []string{
