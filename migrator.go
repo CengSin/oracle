@@ -88,7 +88,6 @@ func (m Migrator) RenameTable(oldName, newName interface{}) (err error) {
 }
 
 func (m Migrator) AddColumn(value interface{}, field string) error {
-	field = strings.ToUpper(field)
 	return m.RunWithValue(value, func(stmt *gorm.Statement) error {
 		if field := stmt.Schema.LookUpField(field); field != nil {
 			return m.DB.Exec(
@@ -119,7 +118,6 @@ func (m Migrator) DropColumn(value interface{}, name string) error {
 }
 
 func (m Migrator) AlterColumn(value interface{}, field string) error {
-	field = strings.ToUpper(field)
 	if !m.HasColumn(value, field) {
 		return nil
 	}
@@ -168,7 +166,6 @@ func (m Migrator) DropConstraint(value interface{}, name string) error {
 }
 
 func (m Migrator) HasConstraint(value interface{}, name string) bool {
-	name = strings.ToUpper(name)
 	var count int64
 	return m.RunWithValue(value, func(stmt *gorm.Statement) error {
 		return m.DB.Raw(
