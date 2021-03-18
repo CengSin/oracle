@@ -198,7 +198,7 @@ func (d Dialector) DataTypeOf(field *schema.Field) string {
 	case schema.Bytes:
 		sqlType = "BLOB"
 	default:
-		sqlType := string(field.DataType)
+		sqlType = string(field.DataType)
 
 		if strings.EqualFold(sqlType, "text") {
 			sqlType = "CLOB"
