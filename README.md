@@ -13,6 +13,11 @@ GORM Oracle driver for connect Oracle DB and Manage Oracle DB, Based on [stevefa
 - see [ODPI-C Installation.](https://oracle.github.io/odpi/doc/installation.html)
 
 ## Quick Start
+### how to install 
+```bash
+go get github.com/cengsin/oracle
+```
+###  usage
 
 ```go
 import (
