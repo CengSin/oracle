@@ -21,7 +21,7 @@ import (
 type Config struct {
 	DriverName        string
 	DSN               string
-	Conn              *sql.DB
+	Conn              gorm.ConnPool //*sql.DB
 	DefaultStringSize uint
 }
 
@@ -52,7 +52,10 @@ func (d Dialector) Initialize(db *gorm.DB) (err error) {
 	// register callbacks
 	//callbacks.RegisterDefaultCallbacks(db, &callbacks.Config{WithReturning: true})
 	callbacks.RegisterDefaultCallbacks(db, &callbacks.Config{
-	UpdateClauses: []string{"UPDATE", "SET", "WHERE", "ORDER BY", "RETURNING"},})
+		CreateClauses: []string{"INSERT", "VALUES", "ON CONFLICT", "RETURNING"},
+		UpdateClauses: []string{"UPDATE", "SET", "WHERE", "RETURNING"},
+		DeleteClauses: []string{"DELETE", "FROM", "WHERE", "RETURNING"},
+	})
 	
 	d.DriverName = "godror"
 
